@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
 VERSION="25.12.0-rc1"
 
 REPO_URL="https://github.com/openwrt/openwrt.git"
