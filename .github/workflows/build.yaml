@@ -15,7 +15,7 @@ jobs:
       OPENWRT_REPO_URL: "https://github.com/openwrt/openwrt.git"
       OPENWRT_REVISION: ${{ matrix.openwrt_revision }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
-      CACHE_KEY: ${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles('configs/config-' + matrix.openwrt_target, 'patches/*') }}
+      CACHE_KEY: ${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
 
     steps:
       - name: checkout
