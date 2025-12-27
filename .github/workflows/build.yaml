@@ -15,7 +15,6 @@ jobs:
       OPENWRT_REPO_URL: "https://github.com/openwrt/openwrt.git"
       OPENWRT_REVISION: ${{ matrix.openwrt_revision }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
-      CACHE_KEY: ${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
 
     steps:
       - name: checkout
@@ -29,7 +28,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt
-          key: repository-${{ env.CACHE_KEY }}
+          key: repository-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
 
       - name: clone repositories
         if: steps.restore-repository.outputs.cache-hit != 'true'
@@ -54,7 +53,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt/dl
-          key: download-${{ env.CACHE_KEY }}
+          key: download-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
 
       - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
@@ -71,7 +70,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: staging_dir
-          key: toolchain-${{ env.CACHE_KEY }}
+          key: toolchain-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
 
       - name: compile / install toolchain
         run: ./6-toolchain.sh
