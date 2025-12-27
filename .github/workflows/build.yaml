@@ -15,6 +15,7 @@ jobs:
       OPENWRT_REPO_URL: "https://github.com/openwrt/openwrt.git"
       OPENWRT_REVISION: ${{ matrix.openwrt_revision }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
+      CACHE_KEY: ${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles('configs/config-' + matrix.openwrt_target, 'patches/*') }}
 
     steps:
       - name: checkout
@@ -23,45 +24,63 @@ jobs:
       - name: install prerequisites
         run: ./1-prerequisites.sh
 
-      - name: restore openwrt repository cache
-        id: restore-repo
+      - name: restore repository cache
+        id: restore-repository
         uses: actions/cache/restore@v5
         with:
           path: openwrt
-          key: repo-${{ runner.os }}-${{ matrix.openwrt_revision }}
+          key: repository-${{ env.CACHE_KEY }}
 
-      - name: clone openwrt repository
-        if: steps.restore-clone.outputs.cache-hit != 'true'
-        run: ./2-clone.sh
+      - name: clone repositories
+        if: steps.restore-repository.outputs.cache-hit != 'true'
+        run: ./2-repository.sh
 
-      - name: save openwrt repository cache
+      - name: patch
+        if: steps.restore-repository.outputs.cache-hit != 'true'
+        run: ./3-patch.sh
+
+      - name: configure
+        if: steps.restore-repository.outputs.cache-hit != 'true'
+        run: ./4-config.sh
+
+      - name: save repository cache
         uses: actions/cache/save@v5
         with:
           path: openwrt
-          key: ${{ steps.restore-repo.outputs.cache-primary-key }}
+          key: ${{ steps.restore-repository.outputs.cache-primary-key }}
 
-      - name: patch openwrt repository
-        run: ./3-patch.sh
-
-      - name: configure openwrt repository
-        run: ./4-config.sh
-
-      - name: restore openwrt download cache
+      - name: restore download cache
         id: restore-download
         uses: actions/cache/restore@v5
         with:
           path: openwrt/dl
-          key: download-${{ runner.os }}-${{ matrix.openwrt_revision }}-${{ matrix.openwrt_target }}
+          key: download-${{ env.CACHE_KEY }}
 
-      - name: download openwrt files
+      - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
         run: ./5-download.sh
 
-      - name: save openwrt download cache
+      - name: save download cache
         uses: actions/cache/save@v5
         with:
           path: openwrt/dl
           key: ${{ steps.restore-download.outputs.cache-primary-key }}
 
-      - name: build openwrt
-        run: ./6-build.sh
+      - name: restore toolchain cache
+        id: restore-toolchain
+        uses: actions/cache/restore@v5
+        with:
+          path: staging_dir
+          key: toolchain-${{ env.CACHE_KEY }}
+
+      - name: compile / install toolchain
+        run: ./6-toolchain.sh
+
+      - name: save toolchain cache
+        uses: actions/cache/save@v5
+        with:
+          path: staging_dir
+          key: ${{ steps.restore-toolchain.outputs.cache-primary-key }}
+
+      - name: compile / install everything else
+        run: ./7-world.sh

@@ -3,4 +3,6 @@
 set -eu
 
 cd openwrt
-patch -p1 <../dnsmasq-2.92rc3.patch
+for PATCH_PATH in ../patches/*; do
+  patch -p1 <"$PATCH_PATH"
+done

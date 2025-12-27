@@ -3,5 +3,5 @@
 set -eu
 
 cd openwrt
-cp "../config-$OPENWRT_TARGET" .config
+cp "../configs/config-$OPENWRT_TARGET" .config
 make defconfig

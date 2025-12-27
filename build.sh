@@ -8,8 +8,9 @@ OPENWRT_REVISION="v25.12.0-rc1"
 OPENWRT_TARGET="lantiq-xrx200"
 
 ./1-prerequisites.sh
-./2-clone.sh
+./2-repository.sh
 ./3-patch.sh
 ./4-config.sh
 ./5-download.sh
-./6-build.sh
+./6-toolchain.sh
+./7-world.sh
