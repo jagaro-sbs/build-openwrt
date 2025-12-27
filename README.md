@@ -1,6 +1,6 @@
 # Build OpenWRT
 
-This repository builds the latest dnsmasq (2.92rc3) for various OpenWRT targets.
+This repository builds the latest dnsmasq (2.92rc3) for OpenWRT.
 
 ## Running locally
 
