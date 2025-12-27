@@ -94,21 +94,21 @@ jobs:
       - name: set arch
         run: echo "ARCH=$(ls -1 openwrt/bin/packages)" >>"$GITHUB_ENV"
 
-      - name: upload release
+      - name: upload artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: packages-${{ env.ARCH }}
-          path: release
+          name: packages-${{ matrix.openwrt_revision }}-${{ env.ARCH }}
+          path: release/*
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: download release
+      - name: download artifacts
         if: github.ref_type == 'tag'
         uses: actions/download-artifact@v7
         with:
-          merge-multiples: true
+          merge-multiple: true
 
       - name: publish release
         if: github.ref_type == 'tag'
