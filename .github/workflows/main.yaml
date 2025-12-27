@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: packages-${{ matrix.openwrt_revision }}-${{ env.ARCH }}
-          path: release/*
+          path: release
 
   release:
     needs: build
@@ -109,6 +109,7 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           merge-multiple: true
+          path: release
 
       - name: publish release
         if: github.ref_type == 'tag'
