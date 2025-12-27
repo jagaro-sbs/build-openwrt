@@ -13,4 +13,4 @@ OPENWRT_TARGET="lantiq-xrx200"
 ./4-config.sh
 ./5-download.sh
 ./6-toolchain.sh
-./7-world.sh
+./7-compile.sh

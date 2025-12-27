@@ -85,5 +85,11 @@ jobs:
           path: openwrt/staging_dir
           key: ${{ steps.restore-toolchain.outputs.cache-primary-key }}
 
-      - name: compile / install everything else
-        run: ./7-world.sh
+      - name: compile
+        run: ./7-compile.sh
+
+      - name: save dnsmasq apks
+        uses: actions/upload-artifact@v6
+        with:
+          name: dnsmasq
+          path: openwrt/bin/packages/*/base/dnsmasq*.apk
