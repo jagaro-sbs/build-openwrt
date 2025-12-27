@@ -74,7 +74,9 @@ jobs:
         id: restore-toolchain
         uses: actions/cache/restore@v5
         with:
-          path: openwrt/staging_dir
+          path: |
+            openwrt/build_dir
+            openwrt/staging_dir
           key: toolchain-${{ env.CACHE_KEY }}
 
       - name: compile / install toolchain
@@ -85,7 +87,9 @@ jobs:
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
-          path: openwrt/staging_dir
+          path: |
+            openwrt/build_dir
+            openwrt/staging_dir
           key: ${{ steps.restore-toolchain.outputs.cache-primary-key }}
 
       - name: compile
