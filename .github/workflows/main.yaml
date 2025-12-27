@@ -19,40 +19,36 @@ jobs:
       - name: checkout
         uses: actions/checkout@v5
 
-      - name: set cache key
-        run: echo "CACHE_KEY=${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}" >>"$GITHUB_ENV"
-
       - name: install prerequisites
         run: ./1-prerequisites.sh
 
-      - name: restore repository cache
-        id: restore-repository
+      - name: restore clone cache
+        id: restore-clone
         uses: actions/cache/restore@v5
         with:
           path: openwrt
-          key: repository-${{ env.CACHE_KEY }}-${{ hashFiles('patches/*') }}
+          key: clone-${{ matrix.openwrt_revision }}-${{ hashFiles('patches/*') }}
 
       - name: clone repository
-        if: steps.restore-repository.outputs.cache-hit != 'true'
+        if: steps.restore-clone.outputs.cache-hit != 'true'
         run: ./2-clone.sh
 
-      - name: configure repository
-        if: steps.restore-repository.outputs.cache-hit != 'true'
-        run: ./3-config.sh
-
-      - name: save repository cache
-        if: steps.restore-repository.outputs.cache-hit != 'true'
+      - name: save clone cache
+        if: steps.restore-clone.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: openwrt
-          key: ${{ steps.restore-repository.outputs.cache-primary-key }}
+          key: ${{ steps.restore-clone.outputs.cache-primary-key }}
+
+      - name: configure repository
+        run: ./3-config.sh
 
       - name: restore download cache
         id: restore-download
         uses: actions/cache/restore@v5
         with:
           path: openwrt/dl
-          key: download-${{ env.CACHE_KEY }}
+          key: download-${{ matrix.openwrt_revision }}-${{ matrix.openwrt_target }}
 
       - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
@@ -72,7 +68,7 @@ jobs:
           path: |
             openwrt/build_dir
             openwrt/staging_dir
-          key: toolchain-${{ env.CACHE_KEY }}
+          key: toolchain-${{ matrix.openwrt_revision }}-${{ matrix.openwrt_target }}
 
       - name: compile toolchain
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
