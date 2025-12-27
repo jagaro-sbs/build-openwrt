@@ -20,6 +20,9 @@ jobs:
       - name: checkout
         uses: actions/checkout@v5
 
+      - name: set cache key
+        run: echo "CACHE_KEY=${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}" >>"$GITHUB_ENV"
+
       - name: install prerequisites
         run: ./1-prerequisites.sh
 
@@ -28,9 +31,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt
-          key: repository-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
+          key: repository-${{ env.CACHE_KEY }}
 
-      - name: clone repositories
+      - name: clone repository
         if: steps.restore-repository.outputs.cache-hit != 'true'
         run: ./2-repository.sh
 
@@ -54,7 +57,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt/dl
-          key: download-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
+          key: download-${{ env.CACHE_KEY }}
 
       - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
@@ -72,7 +75,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt/staging_dir
-          key: toolchain-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
+          key: toolchain-${{ env.CACHE_KEY }}
 
       - name: compile / install toolchain
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
@@ -88,8 +91,8 @@ jobs:
       - name: compile
         run: ./7-compile.sh
 
-      - name: save dnsmasq apks
+      - name: save apks
         uses: actions/upload-artifact@v6
         with:
-          name: dnsmasq
+          name: apks
           path: openwrt/bin/packages/*/base/dnsmasq*.apk
