@@ -37,14 +37,6 @@ jobs:
         if: steps.restore-repository.outputs.cache-hit != 'true'
         run: ./2-repository.sh
 
-      - name: patch
-        if: steps.restore-repository.outputs.cache-hit != 'true'
-        run: ./3-patch.sh
-
-      - name: configure
-        if: steps.restore-repository.outputs.cache-hit != 'true'
-        run: ./4-config.sh
-
       - name: save repository cache
         if: steps.restore-repository.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
@@ -61,7 +53,7 @@ jobs:
 
       - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
-        run: ./5-download.sh
+        run: ./3-download.sh
 
       - name: save download cache
         if: steps.restore-download.outputs.cache-hit != 'true'
@@ -79,9 +71,9 @@ jobs:
             openwrt/staging_dir
           key: toolchain-${{ env.CACHE_KEY }}
 
-      - name: compile / install toolchain
+      - name: compile toolchain
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
-        run: ./6-toolchain.sh
+        run: ./4-toolchain.sh
 
       - name: save toolchain cache
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
@@ -93,7 +85,7 @@ jobs:
           key: ${{ steps.restore-toolchain.outputs.cache-primary-key }}
 
       - name: compile
-        run: ./7-compile.sh
+        run: ./5-compile.sh
 
       - name: save apks
         uses: actions/upload-artifact@v6
