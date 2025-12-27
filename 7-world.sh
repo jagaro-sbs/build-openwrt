@@ -3,4 +3,4 @@
 set -eu
 
 cd openwrt
-make -j $(($(nproc)+1)) world V=s
+make -j $(($(nproc)+1)) V=s package/network/services/dnsmasq/{clean,compile}

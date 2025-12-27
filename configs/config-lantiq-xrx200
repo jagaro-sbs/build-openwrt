@@ -1,9 +1,11 @@
-# Based on: https://downloads.openwrt.org/releases/25.12.0-rc1/targets/lantiq/xrx200/config.buildinfo
-
 CONFIG_TARGET_lantiq=y
 CONFIG_TARGET_lantiq_xrx200=y
-CONFIG_TARGET_DEVICE_lantiq_xrx200_DEVICE_avm_fritz3490=y
-CONFIG_TARGET_DEVICE_PACKAGES_lantiq_xrx200_DEVICE_avm_fritz3490=""
+CONFIG_TARGET_lantiq_xrx200_Default=y
+CONFIG_TARGET_PROFILE="Default"
+CONFIG_TARGET_ROOTFS_INITRAMFS=n
+CONFIG_TARGET_ROOTFS_SQUASHFS=n
+
+CONFIG_MAKE_TOOLCHAIN=y
 
 CONFIG_PACKAGE_attendedsysupgrade-common=y
 CONFIG_PACKAGE_cgi-io=y

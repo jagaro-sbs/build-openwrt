@@ -43,6 +43,7 @@ jobs:
         run: ./4-config.sh
 
       - name: save repository cache
+        if: steps.restore-repository.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: openwrt
@@ -60,6 +61,7 @@ jobs:
         run: ./5-download.sh
 
       - name: save download cache
+        if: steps.restore-download.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: openwrt/dl
@@ -73,9 +75,11 @@ jobs:
           key: toolchain-${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}
 
       - name: compile / install toolchain
+        if: steps.restore-toolchain.outputs.cache-hit != 'true'
         run: ./6-toolchain.sh
 
       - name: save toolchain cache
+        if: steps.restore-toolchain.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: openwrt/staging_dir
