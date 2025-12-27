@@ -1,8 +1,67 @@
 name: build
+
 on: [push]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        openwrt_revision: ["v25.12.0-rc1"]
+        openwrt_target: ["lantiq-xrx200"]
+
+    env:
+      OPENWRT_REPO_URL: "https://github.com/openwrt/openwrt.git"
+      OPENWRT_REVISION: ${{ matrix.openwrt_revision }}
+      OPENWRT_TARGET: ${{ matrix.openwrt_target }}
+
     steps:
-      - uses: actions/checkout@v5
-      - run: ./build.sh
+      - name: checkout
+        uses: actions/checkout@v5
+
+      - name: install prerequisites
+        run: ./prerequisites.sh
+
+      - name: restore openwrt repository cache
+        id: restore-repo
+        uses: actions/cache/restore@v5
+        with:
+          path: openwrt
+          key: repo-${{ runner.os }}-${{ matrix.openwrt_revision }}
+
+      - name: clone openwrt repository
+        if: steps.restore-clone.outputs.cache-hit != 'true'
+        run: ./clone.sh
+
+      - name: save openwrt repository cache
+        uses: actions/cache/save@v5
+        with:
+          path: openwrt
+          key: ${{ steps.restore-repo.outputs.cache-primary-key }}
+
+      - name: patch openwrt repository
+        run: ./patch.sh
+
+      - name: configure openwrt repository
+        run: ./config.sh
+
+      - name: restore openwrt download cache
+        id: restore-download
+        uses: actions/cache/restore@v5
+        with:
+          path: openwrt/dl
+          key: download-${{ runner.os }}-${{ matrix.openwrt_revision }}-${{ matrix.openwrt_target }}
+
+      - name: download openwrt files
+        if: steps.restore-download.outputs.cache-hit != 'true'
+        run: ./download.sh
+
+      - name: save openwrt download cache
+        uses: actions/cache/save@v5
+        with:
+          path: openwrt/dl
+          key: ${{ steps.restore-download.outputs.cache-primary-key }}
+
+      - name: build openwrt
+        run: ./build.sh
