@@ -4,6 +4,10 @@ set -eu
 
 cd openwrt
 
+for PATCH_PATH in ../patches/$OPENWRT_REVISION/*; do
+  patch -p1 <"$PATCH_PATH"
+done
+
 TARGET="$(echo "$OPENWRT_TARGET" | cut -d - -f 1)"
 SUBTARGET="$(echo "$OPENWRT_TARGET" | cut -d - -f 2)"
 

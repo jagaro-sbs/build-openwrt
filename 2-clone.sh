@@ -13,9 +13,6 @@ cd openwrt
 
 git checkout "$OPENWRT_REVISION"
 
-scripts/feeds update -a
+# Try twice because we often have network errors causing this to fail
+scripts/feeds update -a || scripts/feeds update -a
 scripts/feeds install -a
-
-for PATCH_PATH in ../patches/$OPENWRT_REVISION/*; do
-  patch -p1 <"$PATCH_PATH"
-done
