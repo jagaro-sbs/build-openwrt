@@ -1,6 +1,6 @@
-name: build
+name: main
 
-on: [push]
+on: push
 
 jobs:
   build:
@@ -12,7 +12,6 @@ jobs:
         openwrt_target: ["lantiq-xrx200"]
 
     env:
-      OPENWRT_REPO_URL: "https://github.com/openwrt/openwrt.git"
       OPENWRT_REVISION: ${{ matrix.openwrt_revision }}
       OPENWRT_TARGET: ${{ matrix.openwrt_target }}
 
@@ -21,7 +20,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: set cache key
-        run: echo "CACHE_KEY=${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}-${{ hashFiles(format('configs/config-{0}', matrix.openwrt_target), 'patches/*') }}" >>"$GITHUB_ENV"
+        run: echo "CACHE_KEY=${{ matrix.openwrt_target }}-${{ matrix.openwrt_revision }}" >>"$GITHUB_ENV"
 
       - name: install prerequisites
         run: ./1-prerequisites.sh
@@ -31,11 +30,15 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt
-          key: repository-${{ env.CACHE_KEY }}
+          key: repository-${{ env.CACHE_KEY }}-${{ hashFiles('patches/*') }}
 
       - name: clone repository
         if: steps.restore-repository.outputs.cache-hit != 'true'
-        run: ./2-repository.sh
+        run: ./2-clone.sh
+
+      - name: configure repository
+        if: steps.restore-repository.outputs.cache-hit != 'true'
+        run: ./3-config.sh
 
       - name: save repository cache
         if: steps.restore-repository.outputs.cache-hit != 'true'
@@ -53,7 +56,7 @@ jobs:
 
       - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
-        run: ./3-download.sh
+        run: ./4-download.sh
 
       - name: save download cache
         if: steps.restore-download.outputs.cache-hit != 'true'
@@ -73,7 +76,7 @@ jobs:
 
       - name: compile toolchain
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
-        run: ./4-toolchain.sh
+        run: ./5-toolchain.sh
 
       - name: save toolchain cache
         if: steps.restore-toolchain.outputs.cache-hit != 'true'
@@ -85,10 +88,30 @@ jobs:
           key: ${{ steps.restore-toolchain.outputs.cache-primary-key }}
 
       - name: compile
-        run: ./5-compile.sh
+        run: ./6-compile.sh
 
-      - name: save apks
+      - name: make release
+        run: ./7-release.sh
+
+      - name: set arch
+        run: echo "ARCH=$(ls -1 openwrt/bin/packages)" >>"$GITHUB_ENV"
+
+      - name: upload release
         uses: actions/upload-artifact@v6
         with:
-          name: apks
-          path: openwrt/bin/packages/*/base/dnsmasq*.apk
+          name: packages-${{ env.ARCH }}
+          path: release
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: download release
+        uses: actions/download-artifact@v7
+        with:
+          merge-multiples: true
+
+      - name: publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
