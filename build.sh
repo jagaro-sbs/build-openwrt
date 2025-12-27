@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -eu
+cd "$(dirname "$0")"
 
 export OPENWRT_REVISION="v25.12.0-rc1"
 export OPENWRT_TARGETS="lantiq-xrx200"
