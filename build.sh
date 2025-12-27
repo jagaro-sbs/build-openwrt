@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 OPENWRT_REVISIONS="v24.10.5 v25.12.0-rc1"
 OPENWRT_TARGETS="lantiq-xrx200 ramips-mt7621 x86-64"
 
-export OPENWRT_REVISIONS
+export OPENWRT_REVISION
 export OPENWRT_TARGET
 
 ./1-prerequisites.sh # needs sudo

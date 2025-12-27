@@ -4,8 +4,11 @@ set -eu
 
 OPENWRT_REPO_URL="https://github.com/openwrt/openwrt.git"
 
+test -d .openwrt || git clone "$OPENWRT_REPO_URL" .openwrt
+( cd .openwrt && git pull )
+
 rm -rf openwrt
-git clone "$OPENWRT_REPO_URL" openwrt
+git clone .openwrt openwrt
 cd openwrt
 
 git checkout "$OPENWRT_REVISION"
