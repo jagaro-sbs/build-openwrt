@@ -17,5 +17,5 @@ for PACKAGE_PATH in "openwrt/bin/packages/$ARCH/base/dnsmasq"*; do
     PACKAGE_VERSION="$(echo "$PACKAGE_FILE" | sed -e 's/^[^_]*_//' -e 's/_[^_]*_[^_]*\.ipk$//')"
   fi
   RELEASE_FILE="$PACKAGE_NAME-$PACKAGE_VERSION-openwrt-$OPENWRT_REVISION-$ARCH.$PACKAGE_EXT"
-  echo cp "$PACKAGE_PATH" "release/$RELEASE_FILE"
+  cp "$PACKAGE_PATH" "release/$RELEASE_FILE"
 done
