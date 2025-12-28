@@ -49,7 +49,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: openwrt/dl
-          key: download-${{ matrix.openwrt_revision }}-${{ matrix.openwrt_target }}
+          # Using a less than ideal cache key to reduce cache storage so we can
+          # be under 10GB for GitHub.
+          key: download-${{ matrix.openwrt_revision }}
 
       - name: download dependencies
         if: steps.restore-download.outputs.cache-hit != 'true'
