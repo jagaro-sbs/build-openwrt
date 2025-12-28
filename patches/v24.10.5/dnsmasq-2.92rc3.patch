@@ -1,5 +1,84 @@
---- a/package/network/services/dnsmasq/Makefile	2025-12-26 06:39:28.572863364 +0000
-+++ b/package/network/services/dnsmasq/Makefile	2025-12-26 13:40:50.790381588 +0000
+diff -ruN a/package/network/services/dnsmasq/files/dhcp-script.sh b/package/network/services/dnsmasq/files/dhcp-script.sh
+--- a/package/network/services/dnsmasq/files/dhcp-script.sh	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/files/dhcp-script.sh	2025-12-28 03:22:23.181256260 +0000
+@@ -8,6 +8,15 @@
+ json_add_array env
+ hotplugobj=""
+ 
++oldIFS=$IFS
++IFS=$'\n'
++for var in $(env); do
++	if [ "${var}" != "${var#DNSMASQ_}" ]; then
++		json_add_string "" "${var%%=*}=${var#*=}"
++	fi
++done
++IFS=$oldIFS
++
+ case "$1" in
+ 	add | del | old | arp-add | arp-del)
+ 		json_add_string "" "MACADDR=$2"
+diff -ruN a/package/network/services/dnsmasq/files/dnsmasq.init b/package/network/services/dnsmasq/files/dnsmasq.init
+--- a/package/network/services/dnsmasq/files/dnsmasq.init	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/files/dnsmasq.init	2025-12-28 03:22:23.181256260 +0000
+@@ -20,7 +20,7 @@
+ DHCPBOGUSHOSTNAMEFILE="/usr/share/dnsmasq/dhcpbogushostname.conf"
+ RFC6761FILE="/usr/share/dnsmasq/rfc6761.conf"
+ DHCPSCRIPT="/usr/lib/dnsmasq/dhcp-script.sh"
+-DHCPSCRIPT_DEPENDS="/usr/share/libubox/jshn.sh /usr/bin/jshn /bin/ubus"
++DHCPSCRIPT_DEPENDS="/usr/share/libubox/jshn.sh /usr/bin/jshn /bin/ubus /usr/bin/env"
+ 
+ DNSMASQ_DHCP_VER=4
+ 
+@@ -170,7 +170,9 @@
+ }
+ 
+ append_address() {
++	local address_as_local="$2"
+ 	xappend "--address=$1"
++	[ $address_as_local -gt 0 ] && xappend "--local=${1%/*}/"
+ }
+ 
+ append_connmark_allowlist() {
+@@ -597,10 +599,20 @@
+ 	nettag="${networkid:+set:${networkid},}"
+ 
+ 	# make sure the DHCP range is not empty
+-	if [ "$dhcpv4" != "disabled" ] && ipcalc "$ipaddr/$prefix_or_netmask" "$start" "$limit" ; then
+-		[ "$dynamicdhcpv4" = "0" ] && END="static"
+-
+-		xappend "--dhcp-range=$tags$nettag$START,$END,$NETMASK,$leasetime${options:+ $options}"
++	if [ "$dhcpv4" != "disabled" ]; then
++		unset START
++		unset END
++		unset NETMASK
++		ipcalc "$ipaddr/$prefix_or_netmask" "$start" "$limit"
++
++		if [ -z "$START" ] || [ -z "$END" ] || [ -z "$NETMASK" ]; then
++			logger -t dnsmasq \
++				"unable to set dhcp-range for dhcp uci config section '$cfg'" \
++				"on interface '$ifname', please check your config"
++		else
++			[ "$dynamicdhcpv4" = "0" ] && END="static"
++			xappend "--dhcp-range=$tags$nettag$START,$END,$NETMASK,$leasetime${options:+ $options}"
++		fi
+ 	fi
+ 
+ 	if [ "$dynamicdhcpv6" = "0" ] ; then
+@@ -1026,7 +1038,10 @@
+ 	config_list_foreach "$cfg" "listen_address" append_listenaddress
+ 	config_list_foreach "$cfg" "server" append_server
+ 	config_list_foreach "$cfg" "rev_server" append_rev_server
+-	config_list_foreach "$cfg" "address" append_address
++
++	local address_as_local
++	config_get address_as_local "$cfg" address_as_local 0
++	config_list_foreach "$cfg" "address" append_address "$address_as_local"
+ 
+ 	local connmark_allowlist_enable
+ 	config_get connmark_allowlist_enable "$cfg" connmark_allowlist_enable 0
+diff -ruN a/package/network/services/dnsmasq/Makefile b/package/network/services/dnsmasq/Makefile
+--- a/package/network/services/dnsmasq/Makefile	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/Makefile	2025-12-28 03:24:28.762840221 +0000
 @@ -8,13 +8,13 @@
  include $(TOPDIR)/rules.mk
  
@@ -19,34 +98,9 @@
  
  PKG_LICENSE:=GPL-2.0
  PKG_LICENSE_FILES:=COPYING
---- a/package/network/services/dnsmasq/patches/200-ubus_dns.patch       2025-12-27 22:27:06.529714732 +0000
-+++ b/package/network/services/dnsmasq/patches/200-ubus_dns.patch       2025-12-28 01:08:19.235472894 +0000
-@@ -1,16 +1,16 @@
- --- a/src/dnsmasq.c
- +++ b/src/dnsmasq.c
--@@ -2021,6 +2021,10 @@ static void check_dns_listeners(time_t n
--                 daemon->pipe_to_parent = pipefd[1];
--               }
-+@@ -2097,6 +2097,10 @@
-+       daemon->pipe_to_parent = pipefd[1];
-+     }
-  
- +#ifdef HAVE_UBUS
--+            drop_ubus_listeners();
-++        drop_ubus_listeners();
- +#endif
- +
--             /* start with no upstream connections. */
--             for (s = daemon->servers; s; s = s->next)
--                s->tcpfd = -1; 
-+   /* The connected socket inherits non-blocking
-+      attribute from the listening socket. 
-+      Reset that here. */
- --- a/src/dnsmasq.h
- +++ b/src/dnsmasq.h
- @@ -1670,14 +1670,26 @@ void emit_dbus_signal(int action, struct
---- a/package/network/services/dnsmasq/patches/0001-Fix-spurious-resource-limit-exceeded-messages.patch	2025-12-27 22:27:06.529714732 +0000
-+++ /dev/null
+diff -ruN a/package/network/services/dnsmasq/patches/0001-Fix-spurious-resource-limit-exceeded-messages.patch b/package/network/services/dnsmasq/patches/0001-Fix-spurious-resource-limit-exceeded-messages.patch
+--- a/package/network/services/dnsmasq/patches/0001-Fix-spurious-resource-limit-exceeded-messages.patch	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/patches/0001-Fix-spurious-resource-limit-exceeded-messages.patch	1970-01-01 00:00:00.000000000 +0000
 @@ -1,43 +0,0 @@
 -From 1ed783b8d7343c42910a61f12a8fc6237eb80417 Mon Sep 17 00:00:00 2001
 -From: Simon Kelley <simon@thekelleys.org.uk>
@@ -91,8 +145,9 @@
 -   
 -   /* Can't validate, as we're missing key data. Put this
 -      answer aside, whilst we get that. */     
---- a/package/network/services/dnsmasq/patches/0002-PATCH-Fix-error-introduced-in-51471cafa5a4fa44d6fe49.patch	2025-12-27 22:27:06.529714732 +0000
-+++ /dev/null
+diff -ruN a/package/network/services/dnsmasq/patches/0002-PATCH-Fix-error-introduced-in-51471cafa5a4fa44d6fe49.patch b/package/network/services/dnsmasq/patches/0002-PATCH-Fix-error-introduced-in-51471cafa5a4fa44d6fe49.patch
+--- a/package/network/services/dnsmasq/patches/0002-PATCH-Fix-error-introduced-in-51471cafa5a4fa44d6fe49.patch	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/patches/0002-PATCH-Fix-error-introduced-in-51471cafa5a4fa44d6fe49.patch	1970-01-01 00:00:00.000000000 +0000
 @@ -1,31 +0,0 @@
 -From ccff85ad72d2f858d9743d40525128e4f62d41a8 Mon Sep 17 00:00:00 2001
 -From: renmingshuai <renmingshuai@huawei.com>
@@ -125,8 +180,9 @@
 -       
 -       wildcard--;
 -       *wildcard = '*';
---- a/package/network/services/dnsmasq/patches/0003-Handle-DS-queries-to-auth-zones.patch	2025-12-27 22:27:06.529714732 +0000
-+++ /dev/null
+diff -ruN a/package/network/services/dnsmasq/patches/0003-Handle-DS-queries-to-auth-zones.patch b/package/network/services/dnsmasq/patches/0003-Handle-DS-queries-to-auth-zones.patch
+--- a/package/network/services/dnsmasq/patches/0003-Handle-DS-queries-to-auth-zones.patch	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/patches/0003-Handle-DS-queries-to-auth-zones.patch	1970-01-01 00:00:00.000000000 +0000
 @@ -1,98 +0,0 @@
 -From 8ce27433f8b2e17c557cb55e4f16941d309deeac Mon Sep 17 00:00:00 2001
 -From: Simon Kelley <simon@thekelleys.org.uk>
@@ -226,3 +282,30 @@
 - #endif
 - 	    }
 - 	}
+diff -ruN a/package/network/services/dnsmasq/patches/200-ubus_dns.patch b/package/network/services/dnsmasq/patches/200-ubus_dns.patch
+--- a/package/network/services/dnsmasq/patches/200-ubus_dns.patch	2025-12-28 02:34:19.060436925 +0000
++++ b/package/network/services/dnsmasq/patches/200-ubus_dns.patch	2025-12-28 03:22:23.181256260 +0000
+@@ -1,16 +1,16 @@
+ --- a/src/dnsmasq.c
+ +++ b/src/dnsmasq.c
+-@@ -2021,6 +2021,10 @@ static void check_dns_listeners(time_t n
+- 		  daemon->pipe_to_parent = pipefd[1];
+- 		}
++@@ -2097,6 +2097,10 @@
++       daemon->pipe_to_parent = pipefd[1];
++     }
+  
+ +#ifdef HAVE_UBUS
+-+	      drop_ubus_listeners();
+++	  drop_ubus_listeners();
+ +#endif
+ +
+- 	      /* start with no upstream connections. */
+- 	      for (s = daemon->servers; s; s = s->next)
+- 		 s->tcpfd = -1; 
++   /* The connected socket inherits non-blocking
++      attribute from the listening socket. 
++      Reset that here. */
+ --- a/src/dnsmasq.h
+ +++ b/src/dnsmasq.h
+ @@ -1670,14 +1670,26 @@ void emit_dbus_signal(int action, struct
